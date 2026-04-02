@@ -15,7 +15,7 @@ def create_pdf(title, text):
     pdf.cell(200, 10, txt=title, ln=1, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    # Clean text for PDF encoding (handles Swahili/English chars)
+    # Clean text for PDF encoding (handles Swahili/English characters)
     clean_text = text.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 10, txt=clean_text)
     return pdf.output(dest='S').encode('latin-1')
@@ -27,6 +27,7 @@ if not os.path.exists("recordings"):
 
 @st.cache_resource
 def load_model():
+    # 'base' model is the best balance of speed and accuracy for Kiswahili/English
     return WhisperModel("base", device="cpu", compute_type="int8")
 
 model = load_model()
@@ -45,12 +46,12 @@ with st.sidebar:
     st.markdown("---")
     selection = st.radio("GO TO:", ["🎙️ Start Recording", "📚 Saved & Notes", "📤 Upload Audio", "📄 Upload PDF"])
     st.markdown("---")
-    st.info("System: Local AI Active")
+    st.info("System: Local AI Engine Active")
 
 # --- 1. START RECORDING PAGE ---
 if selection == "🎙️ Start Recording":
     st.header("New Class Recording")
-    name_input = st.text_input("Enter Class Name", "Economics Lecture")
+    name_input = st.text_input("Enter Class Name", "New Lecture")
     st.write("---")
     audio_record = mic_recorder(start_prompt="🔴 Start Recording", stop_prompt="⏹️ Stop and Save", key='main_recorder')
 
@@ -66,11 +67,12 @@ if selection == "🎙️ Start Recording":
         conn.commit()
         st.success(f"✅ Saved! Go to 'Saved & Notes' to process.")
 
-# --- 2. SAVED & NOTES PAGE (FIXED SQL ERROR HERE) ---
+# --- 2. SAVED & NOTES PAGE (MAIN LIBRARY) ---
 elif selection == "📚 Saved & Notes":
     st.header("Your Library")
     search = st.text_input("🔍 Search by name...", "")
-    # FIXED: Changed 'BY' to 'FROM' and ensured proper SQL syntax
+    
+    # FIXED SQL QUERY
     rows = c.execute("SELECT * FROM records WHERE class_name LIKE ? ORDER BY id DESC", ('%' + search + '%',)).fetchall()
     
     if not rows:
@@ -85,78 +87,98 @@ elif selection == "📚 Saved & Notes":
             
             col_a, col_b, col_c = st.columns(3)
             
+            # --- TRANSCRIBE ACTION ---
             if col_a.button(f"📝 Transcribe", key=f"t_btn_{rid}"):
-                with st.spinner("AI is listening..."):
+                with st.spinner("AI is listening to the lecture..."):
                     segments, _ = model.transcribe(rpath)
                     full_text = " ".join([s.text for s in segments])
                     c.execute("UPDATE records SET transcript=? WHERE id=?", (full_text, rid))
                     conn.commit()
                     st.rerun()
 
+            # --- SMART SUMMARIZE ACTION (NEW LOGIC) ---
             if col_b.button(f"✨ Summarize", key=f"s_btn_{rid}"):
                 if rtrans:
-                    with st.spinner("Creating Smart Notes..."):
-                        sentences = [s.strip() for s in rtrans.split(". ") if len(s) > 40]
-                        smart_notes = f"KEY TAKEAWAYS FOR {rname}:\n\n" + "\n".join([f"• {s}" for s in sentences[:15]])
+                    with st.spinner("Extracting Names & Keywords..."):
+                        # Extracting potential names/topics (Words starting with Capitals)
+                        words = rtrans.split()
+                        potential_entities = []
+                        for w in words:
+                            cleaned = w.strip(".,!?:()\"")
+                            if len(cleaned) > 3 and cleaned[0].isupper() and cleaned not in potential_entities:
+                                potential_entities.append(cleaned)
+                        
+                        # Extracting main teaching points (Sentences over 45 chars)
+                        sentences = [s.strip() for s in rtrans.split(". ") if len(s) > 45]
+                        
+                        # Formatting the Smart Summary
+                        smart_notes = f"### 💡 KEY NAMES & TOPICS:\n"
+                        smart_notes += ", ".join(potential_entities[:15]) if potential_entities else "No specific names found."
+                        smart_notes += "\n\n### 📝 CORE STUDY POINTS:\n"
+                        smart_notes += "\n".join([f"• {s}" for s in sentences[:10]])
+                        
                         c.execute("UPDATE records SET summary=? WHERE id=?", (smart_notes, rid))
                         conn.commit()
                         st.rerun()
                 else:
                     st.error("Please transcribe the audio first!")
 
+            # --- DELETE ACTION ---
             if col_c.button(f"🗑️ Delete", key=f"d_btn_{rid}"):
                 if rpath != "N/A" and os.path.exists(rpath): os.remove(rpath)
                 c.execute("DELETE FROM records WHERE id=?", (rid,))
                 conn.commit()
                 st.rerun()
 
+            # --- DISPLAY & DOWNLOAD TABS ---
             tab_t, tab_s = st.tabs(["📜 Full Transcript", "💡 Smart Summary"])
             
             with tab_t:
                 if rtrans:
-                    st.text_area("Transcript Text", rtrans, height=200, key=f"ta_view_{rid}")
-                    pdf_t_data = create_pdf(f"Transcript: {rname}", rtrans)
-                    st.download_button("📥 Download PDF", pdf_t_data, f"{rname}_T.pdf", "application/pdf", key=f"dl_t_{rid}")
+                    st.text_area("Full Transcript", rtrans, height=200, key=f"ta_view_{rid}")
+                    pdf_t = create_pdf(f"Transcript: {rname}", rtrans)
+                    st.download_button("📥 Download Transcript (PDF)", pdf_t, f"{rname}_T.pdf", "application/pdf", key=f"dl_t_{rid}")
                 else:
-                    st.info("Click 'Transcribe' to generate text.")
+                    st.info("No transcript found. Click 'Transcribe'.")
 
             with tab_s:
                 if rsum:
                     st.markdown(rsum)
-                    pdf_s_data = create_pdf(f"Summary: {rname}", rsum)
-                    st.download_button("📥 Download PDF", pdf_s_data, f"{rname}_S.pdf", "application/pdf", key=f"dl_s_{rid}")
+                    pdf_s = create_pdf(f"Summary: {rname}", rsum)
+                    st.download_button("📥 Download Summary (PDF)", pdf_s, f"{rname}_Summary.pdf", "application/pdf", key=f"dl_s_{rid}")
                 else:
-                    st.info("Click 'Summarize' to generate notes.")
+                    st.info("No summary found. Click 'Summarize'.")
 
-# --- 3. UPLOAD AUDIO PAGE (RESTORED) ---
+# --- 3. UPLOAD AUDIO PAGE ---
 elif selection == "📤 Upload Audio":
     st.header("Upload Audio File")
-    up_name = st.text_input("Name this file", "Seminar Audio")
-    up_file = st.file_uploader("Choose MP3/WAV", type=['mp3', 'wav'])
+    up_name = st.text_input("Recording Name", "Seminar Recording")
+    up_file = st.file_uploader("Select MP3 or WAV", type=['mp3', 'wav'])
     
-    if up_file:
-        if st.button("Add to Library"):
-            save_path = os.path.join("recordings", up_file.name)
-            with open(save_path, "wb") as f: 
-                f.write(up_file.read())
-            c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
-                      ("Upload", up_name, save_path, "", "", str(datetime.now())))
-            conn.commit()
-            st.success("✅ File added!")
+    if up_file and st.button("Add to My Library"):
+        save_path = os.path.join("recordings", up_file.name)
+        with open(save_path, "wb") as f: 
+            f.write(up_file.read())
+        c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
+                  ("Upload", up_name, save_path, "", "", str(datetime.now())))
+        conn.commit()
+        st.success("✅ File uploaded successfully!")
 
-# --- 4. UPLOAD PDF PAGE (RESTORED) ---
+# --- 4. UPLOAD PDF PAGE ---
 elif selection == "📄 Upload PDF":
     st.header("Summarize PDF Document")
-    pdf_file = st.file_uploader("Upload Class PDF", type=['pdf'])
+    pdf_file = st.file_uploader("Upload Class Notes (PDF)", type=['pdf'])
     
-    if pdf_file:
-        if st.button("Generate PDF Summary"):
-            with st.spinner("Processing..."):
-                reader = PdfReader(pdf_file)
-                full_pdf_text = "".join([p.extract_text() for p in reader.pages])
-                pdf_sentences = [s.strip() for s in full_pdf_text.split(". ") if len(s) > 40]
-                pdf_summary = f"### 📄 PDF SUMMARY: {pdf_file.name}\n\n" + "\n".join([f"• {s}" for s in pdf_sentences[:15]])
-                c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
-                          ("PDF", pdf_file.name, "N/A", full_pdf_text, pdf_summary, str(datetime.now())))
-                conn.commit()
-                st.success("✅ PDF Summarized!")
+    if pdf_file and st.button("Generate Summary from PDF"):
+        with st.spinner("Analyzing document..."):
+            reader = PdfReader(pdf_file)
+            full_pdf_text = "".join([p.extract_text() for p in reader.pages])
+            
+            # Simple keyword/sentence logic for PDF
+            pdf_sentences = [s.strip() for s in full_pdf_text.split(". ") if len(s) > 50]
+            pdf_summary = f"### 📄 PDF SUMMARY: {pdf_file.name}\n\n" + "\n".join([f"• {s}" for s in pdf_sentences[:15]])
+            
+            c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
+                      ("PDF", pdf_file.name, "N/A", full_pdf_text, pdf_summary, str(datetime.now())))
+            conn.commit()
+            st.success("✅ PDF Analysis complete!")
