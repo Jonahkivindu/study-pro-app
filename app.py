@@ -15,7 +15,7 @@ def create_pdf(title, text):
     pdf.cell(200, 10, txt=title, ln=1, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    # Cleans text for PDF compatibility (handles Swahili/English chars)
+    # Clean text for PDF encoding (handles Swahili/English chars)
     clean_text = text.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 10, txt=clean_text)
     return pdf.output(dest='S').encode('latin-1')
@@ -64,13 +64,14 @@ if selection == "🎙️ Start Recording":
         c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
                   ("Live", name_input, save_path, "", "", str(datetime.now())))
         conn.commit()
-        st.success(f"✅ Saved! Go to 'Saved & Notes' to process {name_input}.")
+        st.success(f"✅ Saved! Go to 'Saved & Notes' to process.")
 
-# --- 2. SAVED & NOTES PAGE (MAIN LIBRARY) ---
+# --- 2. SAVED & NOTES PAGE (FIXED SQL ERROR HERE) ---
 elif selection == "📚 Saved & Notes":
     st.header("Your Library")
     search = st.text_input("🔍 Search by name...", "")
-    rows = c.execute("SELECT * BY class_name LIKE ? ORDER BY id DESC", ('%' + search + '%',)).fetchall()
+    # FIXED: Changed 'BY' to 'FROM' and ensured proper SQL syntax
+    rows = c.execute("SELECT * FROM records WHERE class_name LIKE ? ORDER BY id DESC", ('%' + search + '%',)).fetchall()
     
     if not rows:
         st.info("Your library is empty. Start by recording or uploading a file!")
@@ -84,7 +85,6 @@ elif selection == "📚 Saved & Notes":
             
             col_a, col_b, col_c = st.columns(3)
             
-            # ACTION 1: TRANSCRIBE
             if col_a.button(f"📝 Transcribe", key=f"t_btn_{rid}"):
                 with st.spinner("AI is listening..."):
                     segments, _ = model.transcribe(rpath)
@@ -93,11 +93,9 @@ elif selection == "📚 Saved & Notes":
                     conn.commit()
                     st.rerun()
 
-            # ACTION 2: SUMMARIZE (The Smart Notes Point)
             if col_b.button(f"✨ Summarize", key=f"s_btn_{rid}"):
                 if rtrans:
                     with st.spinner("Creating Smart Notes..."):
-                        # Logic: Extract sentences > 40 chars for high-value info
                         sentences = [s.strip() for s in rtrans.split(". ") if len(s) > 40]
                         smart_notes = f"KEY TAKEAWAYS FOR {rname}:\n\n" + "\n".join([f"• {s}" for s in sentences[:15]])
                         c.execute("UPDATE records SET summary=? WHERE id=?", (smart_notes, rid))
@@ -106,21 +104,19 @@ elif selection == "📚 Saved & Notes":
                 else:
                     st.error("Please transcribe the audio first!")
 
-            # ACTION 3: DELETE
             if col_c.button(f"🗑️ Delete", key=f"d_btn_{rid}"):
                 if rpath != "N/A" and os.path.exists(rpath): os.remove(rpath)
                 c.execute("DELETE FROM records WHERE id=?", (rid,))
                 conn.commit()
                 st.rerun()
 
-            # TABS FOR VIEWING & DOWNLOADING
             tab_t, tab_s = st.tabs(["📜 Full Transcript", "💡 Smart Summary"])
             
             with tab_t:
                 if rtrans:
                     st.text_area("Transcript Text", rtrans, height=200, key=f"ta_view_{rid}")
                     pdf_t_data = create_pdf(f"Transcript: {rname}", rtrans)
-                    st.download_button("📥 Download Transcript (PDF)", pdf_t_data, f"{rname}_Transcript.pdf", "application/pdf", key=f"dl_t_{rid}")
+                    st.download_button("📥 Download PDF", pdf_t_data, f"{rname}_T.pdf", "application/pdf", key=f"dl_t_{rid}")
                 else:
                     st.info("Click 'Transcribe' to generate text.")
 
@@ -128,11 +124,11 @@ elif selection == "📚 Saved & Notes":
                 if rsum:
                     st.markdown(rsum)
                     pdf_s_data = create_pdf(f"Summary: {rname}", rsum)
-                    st.download_button("📥 Download Summary (PDF)", pdf_s_data, f"{rname}_Summary.pdf", "application/pdf", key=f"dl_s_{rid}")
+                    st.download_button("📥 Download PDF", pdf_s_data, f"{rname}_S.pdf", "application/pdf", key=f"dl_s_{rid}")
                 else:
                     st.info("Click 'Summarize' to generate notes.")
 
-# --- 3. UPLOAD AUDIO PAGE ---
+# --- 3. UPLOAD AUDIO PAGE (RESTORED) ---
 elif selection == "📤 Upload Audio":
     st.header("Upload Audio File")
     up_name = st.text_input("Name this file", "Seminar Audio")
@@ -143,28 +139,24 @@ elif selection == "📤 Upload Audio":
             save_path = os.path.join("recordings", up_file.name)
             with open(save_path, "wb") as f: 
                 f.write(up_file.read())
-            
             c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
                       ("Upload", up_name, save_path, "", "", str(datetime.now())))
             conn.commit()
-            st.success("✅ File added! Go to 'Saved & Notes' to transcribe it.")
+            st.success("✅ File added!")
 
-# --- 4. UPLOAD PDF PAGE ---
+# --- 4. UPLOAD PDF PAGE (RESTORED) ---
 elif selection == "📄 Upload PDF":
     st.header("Summarize PDF Document")
     pdf_file = st.file_uploader("Upload Class PDF", type=['pdf'])
     
     if pdf_file:
         if st.button("Generate PDF Summary"):
-            with st.spinner("Extracting & Summarizing..."):
+            with st.spinner("Processing..."):
                 reader = PdfReader(pdf_file)
                 full_pdf_text = "".join([p.extract_text() for p in reader.pages])
-                
-                # Create short bullet points from PDF content
                 pdf_sentences = [s.strip() for s in full_pdf_text.split(". ") if len(s) > 40]
-                pdf_summary = f"### 📄 PDF SUMMARY: {pdf_file.name}\n\n" + "\n".join([f"• {s}" for s in pdf_sentences[:20]])
-                
+                pdf_summary = f"### 📄 PDF SUMMARY: {pdf_file.name}\n\n" + "\n".join([f"• {s}" for s in pdf_sentences[:15]])
                 c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
                           ("PDF", pdf_file.name, "N/A", full_pdf_text, pdf_summary, str(datetime.now())))
                 conn.commit()
-                st.success("✅ PDF Summarized! View it in 'Saved & Notes'.")
+                st.success("✅ PDF Summarized!")
