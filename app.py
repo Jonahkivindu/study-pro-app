@@ -16,7 +16,6 @@ def create_pdf(title, text):
     pdf.cell(200, 10, txt=title, ln=1, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    # Clean text for PDF encoding
     clean_text = text.encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 10, txt=clean_text)
     return pdf.output(dest='S').encode('latin-1')
@@ -29,12 +28,10 @@ if not os.path.exists("recordings"):
 
 @st.cache_resource
 def load_model():
-    # 'base' is fast for local CPUs
     return WhisperModel("base", device="cpu", compute_type="int8")
 
 model = load_model()
 
-# Database Connection
 conn = sqlite3.connect('class_pro_v6.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS records 
@@ -42,11 +39,10 @@ c.execute('''CREATE TABLE IF NOT EXISTS records
               transcript TEXT, summary TEXT, date TEXT)''')
 conn.commit()
 
-# --- SIDEBAR NAVIGATION ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("🎓 Study Pro")
     st.markdown("---")
-    # This variable 'selection' MUST be defined here before being used below
     selection = st.radio("GO TO:", ["🎙️ Start Recording", "📚 Saved & Notes", "📤 Upload Audio", "📄 Upload PDF"])
     st.markdown("---")
     st.info("System: Local AI Engine Active")
@@ -55,47 +51,50 @@ with st.sidebar:
 if selection == "🎙️ Start Recording":
     st.header("New Class Recording")
     
-    col_name, col_timer = st.columns([2, 1])
-    
-    with col_name:
-        name_input = st.text_input("Enter Class Name", "New Lecture")
-    
-    with col_timer:
-        st.markdown("### ⏱️ Live Timer")
-        components.html("""
-            <div id="stopwatch" style="
-                font-family: 'Courier New', monospace; 
-                font-size: 30px; 
-                font-weight: bold;
-                color: #ff4b4b; 
-                background: #0e1117; 
-                padding: 10px; 
-                border-radius: 10px; 
-                border: 2px solid #31333f;
-                text-align: center;
-            ">00:00:00</div>
-            <script>
-                let seconds = 0;
-                let display = document.getElementById('stopwatch');
-                setInterval(() => {
-                    seconds++;
-                    let hrs = Math.floor(seconds / 3600);
-                    let mins = Math.floor((seconds % 3600) / 60);
-                    let secs = seconds % 60;
-                    display.innerText = 
-                        (hrs < 10 ? "0" + hrs : hrs) + ":" + 
-                        (mins < 10 ? "0" + mins : mins) + ":" + 
-                        (secs < 10 ? "0" + secs : secs);
-                }, 1000);
-            </script>
-        """, height=100)
+    # Initialize session state for the timer toggle
+    if 'is_recording' not in st.session_state:
+        st.session_state.is_recording = False
 
-    st.write("---")
-    audio_record = mic_recorder(
-        start_prompt="🔴 Start Recording", 
-        stop_prompt="⏹️ Stop and Save", 
-        key='main_recorder'
-    )
+    name_input = st.text_input("Enter Class Name", "New Lecture")
+    
+    col_rec, col_tm = st.columns([1, 1])
+    
+    with col_rec:
+        # Toggle buttons to control the visual stopwatch
+        if not st.session_state.is_recording:
+            if st.button("🔴 Prepare Recorder"):
+                st.session_state.is_recording = True
+                st.rerun()
+        else:
+            if st.button("⏹️ Reset Timer"):
+                st.session_state.is_recording = False
+                st.rerun()
+
+        audio_record = mic_recorder(
+            start_prompt="Start Mic", 
+            stop_prompt="Stop & Save Audio", 
+            key='main_recorder'
+        )
+
+    with col_tm:
+        if st.session_state.is_recording:
+            st.markdown("### ⏱️ Recording Time")
+            components.html("""
+                <div id="stopwatch" style="font-family:monospace; font-size:35px; color:#ff4b4b; text-align:center; background:#1e1e1e; padding:10px; border-radius:10px; border:2px solid #ff4b4b;">00:00:00</div>
+                <script>
+                    let seconds = 0;
+                    setInterval(() => {
+                        seconds++;
+                        let hrs = Math.floor(seconds / 3600);
+                        let mins = Math.floor((seconds % 3600) / 60);
+                        let secs = seconds % 60;
+                        document.getElementById('stopwatch').innerText = 
+                            (hrs<10?"0"+hrs:hrs)+":"+(mins<10?"0"+mins:mins)+":"+(secs<10?"0"+secs:secs);
+                    }, 1000);
+                </script>
+            """, height=100)
+        else:
+            st.write("Timer Idle. Click 'Prepare Recorder' to start.")
 
     if audio_record:
         timestamp = datetime.now().strftime('%H%M%S')
@@ -107,88 +106,73 @@ if selection == "🎙️ Start Recording":
         c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
                   ("Live", name_input, save_path, "", "", str(datetime.now())))
         conn.commit()
-        st.success(f"✅ Saved! Go to 'Saved & Notes' to process.")
+        st.session_state.is_recording = False # Auto-stop timer on save
+        st.success(f"✅ Saved!")
 
-# --- 2. SAVED & NOTES PAGE ---
+# --- 2. SAVED & NOTES PAGE (FIXED DOWNLOAD BUTTONS) ---
 elif selection == "📚 Saved & Notes":
     st.header("Your Library")
-    search = st.text_input("🔍 Search by name...", "")
-    
+    search = st.text_input("🔍 Search...", "")
     rows = c.execute("SELECT * FROM records WHERE class_name LIKE ? ORDER BY id DESC", ('%' + search + '%',)).fetchall()
     
-    if not rows:
-        st.info("Your library is empty.")
-
     for row in rows:
         rid, rtype, rname, rpath, rtrans, rsum, rdate = row
         with st.expander(f"📁 {rname.upper()} | {rdate[:16]}"):
-            if rpath != "N/A" and os.path.exists(rpath):
-                st.audio(rpath)
+            if rpath != "N/A": st.audio(rpath)
             
-            col_a, col_b, col_c = st.columns(3)
+            btn_col1, btn_col2, btn_col3 = st.columns(3)
             
-            if col_a.button(f"📝 Transcribe", key=f"t_{rid}"):
-                with st.spinner("AI Transcribing..."):
-                    segments, _ = model.transcribe(rpath)
-                    full_text = " ".join([s.text for s in segments])
-                    c.execute("UPDATE records SET transcript=? WHERE id=?", (full_text, rid))
+            if btn_col1.button("📝 Transcribe", key=f"trans_{rid}"):
+                segments, _ = model.transcribe(rpath)
+                full_text = " ".join([s.text for s in segments])
+                c.execute("UPDATE records SET transcript=? WHERE id=?", (full_text, rid))
+                conn.commit()
+                st.rerun()
+
+            if btn_col2.button("✨ Summarize", key=f"sum_{rid}"):
+                if rtrans:
+                    summary = f"### Summary for {rname}\n" + "\n".join([f"• {s}" for s in rtrans.split(". ")[:5]])
+                    c.execute("UPDATE records SET summary=? WHERE id=?", (summary, rid))
                     conn.commit()
                     st.rerun()
 
-            if col_b.button(f"✨ Summarize", key=f"s_{rid}"):
-                if rtrans:
-                    with st.spinner("Summarizing..."):
-                        words = rtrans.split()
-                        entities = list(set([w.strip(".,!") for w in words if len(w)>3 and w[0].isupper()]))
-                        sentences = [s.strip() for s in rtrans.split(". ") if len(s) > 45]
-                        
-                        smart_notes = f"### 💡 TOPICS:\n" + ", ".join(entities[:15])
-                        smart_notes += "\n\n### 📝 KEY POINTS:\n" + "\n".join([f"• {s}" for s in sentences[:10]])
-                        
-                        c.execute("UPDATE records SET summary=? WHERE id=?", (smart_notes, rid))
-                        conn.commit()
-                        st.rerun()
-                else:
-                    st.error("Transcribe first!")
-
-            if col_c.button(f"🗑️ Delete", key=f"d_{rid}"):
-                if rpath != "N/A" and os.path.exists(rpath): os.remove(rpath)
+            if btn_col3.button("🗑️ Delete", key=f"del_{rid}"):
                 c.execute("DELETE FROM records WHERE id=?", (rid,))
                 conn.commit()
                 st.rerun()
 
-            tab_t, tab_s = st.tabs(["📜 Transcript", "💡 Summary"])
-            with tab_t:
+            t_tab, s_tab = st.tabs(["Transcript", "Summary"])
+            with t_tab:
                 if rtrans:
-                    st.text_area("Full Text", rtrans, height=150, key=f"view_t_{rid}")
-                    st.download_button("PDF", create_pdf("Transcript", rtrans), f"{rname}_T.pdf")
-            with tab_s:
+                    st.text_area("Text", rtrans, key=f"txt_{rid}")
+                    # FIXED: Added unique key to download button
+                    st.download_button("📥 Download PDF", create_pdf("Transcript", rtrans), f"{rname}_T.pdf", key=f"dl_t_{rid}")
+            with s_tab:
                 if rsum:
                     st.markdown(rsum)
-                    st.download_button("PDF", create_pdf("Summary", rsum), f"{rname}_S.pdf")
+                    # FIXED: Added unique key to download button
+                    st.download_button("📥 Download PDF", create_pdf("Summary", rsum), f"{rname}_S.pdf", key=f"dl_s_{rid}")
 
 # --- 3. UPLOAD AUDIO ---
 elif selection == "📤 Upload Audio":
-    st.header("Upload Audio")
-    up_name = st.text_input("Name", "Seminar")
-    up_file = st.file_uploader("MP3/WAV", type=['mp3', 'wav'])
-    if up_file and st.button("Save"):
+    st.header("Upload")
+    up_file = st.file_uploader("Audio", type=['mp3', 'wav'])
+    if up_file and st.button("Save Audio"):
         save_path = os.path.join("recordings", up_file.name)
         with open(save_path, "wb") as f: f.write(up_file.read())
         c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
-                  ("Upload", up_name, save_path, "", "", str(datetime.now())))
+                  ("Upload", up_file.name, save_path, "", "", str(datetime.now())))
         conn.commit()
         st.success("Uploaded!")
 
 # --- 4. UPLOAD PDF ---
 elif selection == "📄 Upload PDF":
-    st.header("Summarize PDF")
+    st.header("PDF Summary")
     pdf_file = st.file_uploader("PDF", type=['pdf'])
-    if pdf_file and st.button("Analyze"):
+    if pdf_file and st.button("Analyze PDF"):
         reader = PdfReader(pdf_file)
         text = "".join([p.extract_text() for p in reader.pages])
-        summary = "### 📄 PDF SUMMARY\n" + "\n".join([f"• {s}" for s in text.split(". ")[:10] if len(s)>30])
         c.execute("INSERT INTO records (type, class_name, file_path, transcript, summary, date) VALUES (?,?,?,?,?,?)",
-                  ("PDF", pdf_file.name, "N/A", text, summary, str(datetime.now())))
+                  ("PDF", pdf_file.name, "N/A", text, "Summary Pending...", str(datetime.now())))
         conn.commit()
-        st.success("Analyzed!")
+        st.success("PDF Recorded!")
