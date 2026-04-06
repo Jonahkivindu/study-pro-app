@@ -2,8 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mic, Square, Loader2 } from 'lucide-react';
 import { useLectureStore } from '../stores/lectureStore';
-import { transcribeAudio } from '../services/whisperService';
-import { generateSummary } from '../services/geminiService';
+import { generateSummary, transcribeAudioGemini } from '../services/geminiService';
 import { uploadAudioToSupabase } from '../services/audioService';
 import { Waveform } from '../components/Waveform';
 
@@ -41,7 +40,7 @@ export function Home() {
 
   const processAudio = async () => {
     setIsProcessing(true);
-    setStatus("Transcribing via Whisper...");
+    setStatus("Transcribing via Gemini AI...");
     const blob = new Blob(chunks.current, { type: 'audio/webm' });
     chunks.current = [];
     
@@ -52,7 +51,7 @@ export function Home() {
       // Upload audio using mock logic or actual
       const audioUrl = await uploadAudioToSupabase(blob, `${id}.webm`).catch(() => undefined);
       
-      const { text: transcript } = await transcribeAudio(blob);
+      const transcript = await transcribeAudioGemini(blob);
       
       setStatus("Extracting AI Insights...");
       const insights = await generateSummary(transcript);
