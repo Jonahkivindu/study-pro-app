@@ -1,41 +1,82 @@
-# Backend
+# Python / Backend
 backend/.venv/
-backend/__pycache__/
-backend/*.pyc
+backend/venv/
 backend/.env
 backend/.env.local
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/*.pyo
+backend/**/*.pyo
+backend/*.egg-info/
+backend/dist/
+backend/build/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
 backend/alembic/versions/
 backend/instance/
 backend/migrations/versions/
+*.db
+*.sqlite
+*.sqlite3
 
-# Frontend
+# Node / Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/build/
 frontend/.env.local
 frontend/.env.production
-frontend/.DS_Store
+frontend/.npm
+frontend/.pnpm-store/
+frontend/coverage/
+frontend/.next/
+frontend/out/
 
-# IDE
+# IDE / Editor
 .vscode/
 .idea/
+.DS_Store
 *.swp
 *.swo
 *.sublime-workspace
 *.sublime-project
+*.iml
+.vscode-insiders/
+.vim/
+.netrwhist
 
 # OS
-.DS_Store
 Thumbs.db
+.AppleDouble
+.LSOverride
+*.sublime-project
+*.sublime-workspace
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
 # Local development
+.env
 .env.local
-*.db
+.env.*.local
 recordings/
 uploads/
+temp/
+tmp/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Dependencies cache
+.npm/
+yarn.lock
+pnpm-lock.yaml

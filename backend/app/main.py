@@ -11,8 +11,11 @@ from app.database.db import init_db
 # Initialize database on startup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    init_db()
+    # Startup - try to initialize but don't fail if unavailable
+    try:
+        init_db()
+    except Exception as e:
+        print(f"⚠ Startup warning: {str(e)}")
     yield
     # Shutdown (cleanup if needed)
 
