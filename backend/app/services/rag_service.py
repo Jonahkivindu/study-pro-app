@@ -2,17 +2,31 @@
 RAG (Retrieval Augmented Generation) service - Handle embeddings and Q&A
 """
 import os
-import google.generativeai as genai
 from typing import List
+
+try:
+    import google.generativeai as genai
+    HAS_GENAI = True
+except ImportError:
+    HAS_GENAI = False
 
 
 class RAGService:
     def __init__(self):
         """Initialize RAG with embedding model"""
+        if not HAS_GENAI:
+            self.initialized = False
+            return
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            raise ValueError("GEMINI_API_KEY not set in environment")
-        genai.configure(api_key=api_key)
+            self.initialized = False
+            return
+        try:
+            genai.configure(api_key=api_key)
+            self.initialized = True
+        except Exception as e:
+            print(f"⚠️  RAG initialization failed: {e}")
+            self.initialized = False
 
     def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for text using Gemini"""

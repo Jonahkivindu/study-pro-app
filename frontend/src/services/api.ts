@@ -12,11 +12,25 @@ export class ApiClient {
     return res.json();
   }
 
-  async createLecture(data: any) {
+  async createLecture(title: string, description?: string) {
+    const formData = new FormData();
+    formData.append("title", title);
+    if (description) formData.append("description", description);
+    
     const res = await fetch(`${API_URL}/api/lectures`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      body: formData
+    });
+    return res.json();
+  }
+
+  async uploadAudio(lectureId: string, audioBlob: Blob) {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "audio.webm");
+    
+    const res = await fetch(`${API_URL}/api/lectures/${lectureId}/upload-audio`, {
+      method: "POST",
+      body: formData
     });
     return res.json();
   }
@@ -27,6 +41,25 @@ export class ApiClient {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ method })
     });
+    return res.json();
+  }
+
+  async getTranscript(lectureId: string) {
+    const res = await fetch(`${API_URL}/api/lectures/${lectureId}/transcript`);
+    return res.json();
+  }
+
+  async summarizeLecture(lectureId: string, summaryType: string = "executive") {
+    const res = await fetch(`${API_URL}/api/lectures/${lectureId}/summarize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ summary_type: summaryType })
+    });
+    return res.json();
+  }
+
+  async getSummary(lectureId: string) {
+    const res = await fetch(`${API_URL}/api/lectures/${lectureId}/summary`);
     return res.json();
   }
 

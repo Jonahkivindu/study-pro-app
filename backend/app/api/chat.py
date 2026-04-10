@@ -7,8 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 
 from app.database.db import SessionLocal
-from app.models.lecture import Lecture, ChatMessage
-from app.services.rag_service import get_rag_service
+from app.models.database import Lecture
 
 router = APIRouter(prefix="/api", tags=["chat"])
 

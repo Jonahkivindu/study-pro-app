@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, Save } from "lucide-react";
+import { Upload, Save, Mic, FileText, MessageSquare, DownloadCloud, Loader } from "lucide-react";
 import { BottomNav } from "../components/BottomNav";
 import { RecordingInterface } from "../components/RecordingInterface";
 import { Waveform } from "../components/Waveform";
+import { ChatPanel } from "../components/ChatPanel";
+import { ReportPanel } from "../components/ReportPanel";
+import { apiClient } from "../services/api";
 
 export function Home() {
   const [isRecording, setIsRecording] = useState(false);
@@ -10,6 +13,15 @@ export function Home() {
   const [lectureTitle, setLectureTitle] = useState("");
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  
+  // State for managing lecture after saving
+  const [currentLectureId, setCurrentLectureId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string>("");
+  const [transcript, setTranscript] = useState<string>("");
+  const [summary, setSummary] = useState<string>("");
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [showReportPanel, setShowReportPanel] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -116,21 +128,107 @@ export function Home() {
     }
 
     try {
-      // TODO: Upload to backend/storage
-      console.log("Saving lecture:", {
-        title: lectureTitle,
-        duration,
-        size: audioBlob.size,
-      });
+      setLoading(true);
+      setStatus("Creating lecture...");
 
-      alert(`Lecture "${lectureTitle}" saved successfully!`);
+      // Step 1: Create lecture entry
+      const lectureRes = await apiClient.createLecture(lectureTitle);
+      if (!lectureRes.success) {
+        throw new Error(lectureRes.error || "Failed to create lecture");
+      }
+
+      const lectureId = lectureRes.lecture_id.toString();
+      setCurrentLectureId(lectureId);
+      
+      // Step 2: Upload audio
+      setStatus("Uploading audio...");
+      const uploadRes = await apiClient.uploadAudio(lectureId, audioBlob);
+      if (!uploadRes.success) {
+        throw new Error(uploadRes.error || "Failed to upload audio");
+      }
+
+      setStatus("✅ Lecture saved! Ready for transcription.");
       setLectureTitle("");
       setDuration(0);
       setAudioBlob(null);
     } catch (error) {
       console.error("Error saving lecture:", error);
-      alert("Failed to save lecture");
+      setStatus(`❌ ${error instanceof Error ? error.message : "Failed to save"}`);
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to save"}`);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleTranscribe = async () => {
+    if (!currentLectureId) {
+      alert("Please save a lecture first");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setStatus("🎤 Transcribing audio...");
+
+      const result = await apiClient.transcribeLecture(currentLectureId);
+      if (!result.success) {
+        throw new Error(result.error || "Transcription failed");
+      }
+
+      setTranscript(result.transcript || "");
+      setStatus("✅ Transcription complete!");
+    } catch (error) {
+      console.error("Error transcribing:", error);
+      setStatus(`❌ Transcription failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (!currentLectureId) {
+      alert("Please save a lecture first");
+      return;
+    }
+
+    if (!transcript) {
+      alert("Please transcribe the lecture first");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setStatus("📝 Generating summary...");
+
+      const result = await apiClient.summarizeLecture(currentLectureId);
+      if (!result.success) {
+        throw new Error(result.error || "Summarization failed");
+      }
+
+      setSummary(result.summary || "");
+      setStatus("✅ Summary generated!");
+    } catch (error) {
+      console.error("Error summarizing:", error);
+      setStatus(`❌ Summarization failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenChat = () => {
+    if (!transcript) {
+      alert("Please transcribe the lecture first");
+      return;
+    }
+    setShowChatPanel(true);
+  };
+
+  const handleOpenReport = () => {
+    if (!summary) {
+      alert("Please generate a summary first");
+      return;
+    }
+    setShowReportPanel(true);
   };
 
   return (
@@ -186,21 +284,106 @@ export function Home() {
         </div>
 
         {/* Action Buttons */}
-        {audioBlob && (
-          <div className="flex gap-4">
+        {audioBlob && !currentLectureId && (
+          <div className="space-y-3">
             <button
               onClick={handleSave}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
             >
-              <Save className="w-5 h-5" />
-              Save Lecture
+              {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              {loading ? "Saving..." : "Save Lecture"}
             </button>
+          </div>
+        )}
+
+        {/* Post-Save Actions */}
+        {currentLectureId && (
+          <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Lecture Actions</h3>
+              <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                Saved
+              </span>
+            </div>
+
+            {/* Status Display */}
+            {status && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg text-sm">
+                {status}
+              </div>
+            )}
+
+            {/* Action Buttons Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleTranscribe}
+                disabled={loading || !!transcript}
+                className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm"
+              >
+                {loading && !transcript ? <Loader className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                {transcript ? "✓ Transcribed" : "Transcribe"}
+              </button>
+
+              <button
+                onClick={handleSummarize}
+                disabled={loading || !transcript || !!summary}
+                className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm"
+              >
+                {loading && !summary ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                {summary ? "✓ Summarized" : "Summarize"}
+              </button>
+
+              <button
+                onClick={handleOpenChat}
+                disabled={!transcript}
+                className="bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm disabled:cursor-not-allowed"
+              >
+                <MessageSquare className="w-4 h-4" />
+                {!transcript ? "Chat (Soon)" : "Chat"}
+              </button>
+
+              <button
+                onClick={handleOpenReport}
+                disabled={!summary}
+                className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm disabled:cursor-not-allowed"
+              >
+                <DownloadCloud className="w-4 h-4" />
+                {!summary ? "Report (Soon)" : "Report"}
+              </button>
+            </div>
+
+            {/* Transcript Display */}
+            {transcript && (
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Transcript</h4>
+                <div className="bg-gray-50 p-4 rounded-lg max-h-32 overflow-y-auto text-sm text-gray-700">
+                  {transcript.substring(0, 300)}...
+                </div>
+              </div>
+            )}
+
+            {/* Summary Display */}
+            {summary && (
+              <div className="border-t pt-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Summary</h4>
+                <div className="bg-gray-50 p-4 rounded-lg max-h-32 overflow-y-auto text-sm text-gray-700">
+                  {summary.substring(0, 300)}...
+                </div>
+              </div>
+            )}
+
+            {/* Reset Button */}
             <button
-              onClick={() => alert("Upload feature coming soon")}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+              onClick={() => {
+                setCurrentLectureId(null);
+                setStatus("");
+                setTranscript("");
+                setSummary("");
+              }}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 rounded-lg transition text-sm"
             >
-              <Upload className="w-5 h-5" />
-              Upload
+              New Lecture
             </button>
           </div>
         )}
@@ -214,6 +397,25 @@ export function Home() {
           </div>
         )}
       </main>
+
+      {/* Chat Panel Modal */}
+      {showChatPanel && (
+        <ChatPanel
+          lectureTitle={lectureTitle}
+          transcript={transcript}
+          onClose={() => setShowChatPanel(false)}
+        />
+      )}
+
+      {/* Report Panel Modal */}
+      {showReportPanel && (
+        <ReportPanel
+          lectureTitle={lectureTitle}
+          summary={summary}
+          transcript={transcript}
+          onClose={() => setShowReportPanel(false)}
+        />
+      )}
     </div>
   );
 }

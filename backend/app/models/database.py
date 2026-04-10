@@ -21,19 +21,19 @@ class Lecture(Base):
     __tablename__ = "lectures"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"))
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     title = Column(String, index=True)
-    discipline = Column(String)
+    discipline = Column(String, nullable=True)
     description = Column(Text, nullable=True)
-    duration = Column(Integer)  # seconds
-    audio_url = Column(String)
+    duration = Column(Integer, default=0)  # seconds
+    audio_url = Column(String, nullable=True)
     transcript = Column(Text, nullable=True)
     transcript_method = Column(String, nullable=True)  # 'whisper' or 'gemini'
     summary = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    user = relationship("User", back_populates="lectures")
+    user = relationship("User", back_populates="lectures", foreign_keys=[user_id])
     documents = relationship("Document", back_populates="lecture")
     chat_sessions = relationship("ChatSession", back_populates="lecture")
     embeddings = relationship("Embedding", back_populates="lecture")
