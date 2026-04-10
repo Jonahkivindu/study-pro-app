@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, X, Bot, User } from "lucide-react";
+import { apiClient } from "../services/api";
 
 interface ChatMessage {
   id: string;
@@ -9,12 +10,13 @@ interface ChatMessage {
 }
 
 interface ChatPanelProps {
+  lectureId: string;
   lectureTitle: string;
   transcript: string;
   onClose: () => void;
 }
 
-export function ChatPanel({ lectureTitle, transcript, onClose }: ChatPanelProps) {
+export function ChatPanel({ lectureId, lectureTitle, transcript, onClose }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -51,69 +53,73 @@ export function ChatPanel({ lectureTitle, transcript, onClose }: ChatPanelProps)
     setInput("");
     setLoading(true);
 
-    // Simulate API call with mock response
-    setTimeout(() => {
-      const mockResponses = [
-        `Based on the lecture, I found relevant information about "${input}". The key points are: 1) Definition and basics, 2) Practical applications, 3) Related concepts. Would you like me to elaborate on any of these?`,
-        `That's a great question! The lecture covered this topic by explaining the theoretical framework first, then providing real-world examples. The main takeaway was the importance of understanding the underlying principles.`,
-        `Looking at the transcript, I can see this was discussed around the middle of the lecture. The instructor emphasized that this concept is crucial for understanding the next topic. Would you like to know more about how it connects?`,
-        `Excellent question! This relates to several concepts from the lecture. The instructor mentioned this in the context of problem-solving strategies. Let me break down the key components for you.`,
-      ];
-
-      const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-
+    try {
+      const result = await apiClient.sendChatMessage(lectureId, input);
+      
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: randomResponse,
+        content: result.success && result.response ? result.response : `Sorry, I couldn't process your request. Error: ${result.error || 'Is the AI linked correctly?'}`,
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error(err);
+      
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Oops! Something went wrong reaching the backend.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end md:items-center md:justify-center z-50">
-      <div className="bg-white w-full md:w-2xl md:max-h-96 rounded-t-lg md:rounded-lg shadow-lg flex flex-col max-h-screen md:max-h-96">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end md:items-center md:justify-center z-50">
+      <div className="bg-white w-full md:w-2xl md:max-h-[600px] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col max-h-[85vh] border border-gray-100 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-t-lg md:rounded-t-lg">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white">
           <div>
-            <h3 className="font-semibold">Chat with Study Assistant</h3>
-            <p className="text-xs opacity-90">About: {lectureTitle}</p>
+            <h3 className="font-bold tracking-tight text-gray-900 text-lg">Study Assistant</h3>
+            <p className="text-xs font-medium tracking-wide text-gray-400 uppercase mt-0.5 max-w-[250px] md:max-w-md truncate">RE: {lectureTitle}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition"
+            className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-full transition-all"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#fafafa]">
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               {msg.role === "assistant" && (
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-indigo-600" />
+                  <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center shadow-md">
+                    <Bot className="w-5 h-5 text-white" />
                   </div>
                 </div>
               )}
               <div
-                className={`max-w-xs lg:max-w-md py-2 px-4 rounded-lg ${
+                className={`max-w-[85%] lg:max-w-[75%] py-3 px-5 rounded-2xl ${
                   msg.role === "user"
-                    ? "bg-indigo-600 text-white rounded-br-none"
-                    : "bg-white text-gray-900 rounded-bl-none shadow-sm"
+                    ? "bg-gray-100 text-gray-900 rounded-tr-sm"
+                    : "bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm"
                 }`}
               >
-                <p className="text-sm">{msg.content}</p>
-                <span className="text-xs opacity-60 mt-1 block">
+                <p className="text-[15px] leading-relaxed font-medium">{msg.content}</p>
+                <span className="text-[11px] font-bold text-gray-400 mt-2 block tracking-wider uppercase">
                   {msg.timestamp.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -121,26 +127,24 @@ export function ChatPanel({ lectureTitle, transcript, onClose }: ChatPanelProps)
                 </span>
               </div>
               {msg.role === "user" && (
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <User className="w-5 h-5 text-blue-600" />
-                  </div>
+                <div className="flex-shrink-0 flex items-end">
+                  {/* Keep it minimal, no user icon required but we put a small indicator */}
                 </div>
               )}
             </div>
           ))}
           {loading && (
-            <div className="flex gap-3 justify-start">
+            <div className="flex gap-4 justify-start">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-indigo-600 animate-pulse" />
+                <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center shadow-md">
+                  <Bot className="w-5 h-5 text-white animate-pulse" />
                 </div>
               </div>
-              <div className="bg-white text-gray-900 rounded-lg rounded-bl-none shadow-sm py-2 px-4">
+              <div className="bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-tl-sm shadow-sm py-4 px-5 flex items-center h-[52px]">
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: "0.15s" }}></div>
+                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: "0.3s" }}></div>
                 </div>
               </div>
             </div>
@@ -151,26 +155,26 @@ export function ChatPanel({ lectureTitle, transcript, onClose }: ChatPanelProps)
         {/* Input Area */}
         <form
           onSubmit={handleSendMessage}
-          className="border-t p-4 bg-white rounded-b-lg md:rounded-b-lg"
+          className="p-5 bg-white border-t border-gray-50"
         >
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about the lecture..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
+              placeholder="Ask a question about the lecture..."
+              className="flex-1 px-5 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-gray-900 text-gray-900 font-medium transition-all"
               disabled={loading}
             />
             <button
               type="submit"
               disabled={!input.trim() || loading}
-              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg transition flex items-center gap-2"
+              className="w-14 h-14 bg-gray-900 text-white rounded-2xl flex items-center justify-center transition-all duration-300 hover:bg-black hover:scale-105 active:scale-95 disabled:bg-gray-200 disabled:text-gray-400 disabled:scale-100"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs font-medium text-gray-400 mt-4 text-center">
             💡 Try asking: "What are the key concepts?" or "Explain the main topic"
           </p>
         </form>

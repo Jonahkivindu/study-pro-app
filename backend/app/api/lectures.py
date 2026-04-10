@@ -62,6 +62,9 @@ class LectureUpdate(BaseModel):
     description: Optional[str] = None
     transcript: Optional[str] = None
 
+class ChatQuery(BaseModel):
+    query: str
+
 
 # Directory for storing audio files
 UPLOAD_DIR = "/tmp/study_pro_audio"
@@ -245,6 +248,38 @@ async def summarize_lecture(lecture_id: str, summary_type: str = "executive"):
             "summary": result.get("summary"),
             "summary_type": summary_type,
             "error": result.get("error"),
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@router.post("/lectures/{lecture_id}/chat", response_model=dict)
+async def chat_lecture(lecture_id: str, chat_query: ChatQuery):
+    """Chat with the lecture transcript utilizing Gemini"""
+    try:
+        db = SessionLocal()
+        lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+        db.close()
+
+        if not lecture:
+            raise HTTPException(status_code=404, detail="Lecture not found")
+        if not lecture.transcript:
+            raise HTTPException(status_code=400, detail="No transcript available to chat with")
+
+        import google.generativeai as genai
+        import os
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return {"success": True, "response": "[Mock Response] The AI is currently unlinked, so I cannot provide insights right now."}
+
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        prompt = f"You are a helpful study assistant. The user is asking a question about a lecture transcript.\n\nTranscript:\n{lecture.transcript}\n\nUser Question:\n{chat_query.query}\n\nPlease answer the user's question based strictly on the provided transcript."
+        response = model.generate_content(prompt)
+
+        return {
+            "success": True,
+            "response": response.text
         }
     except Exception as e:
         return {"success": False, "error": str(e)}

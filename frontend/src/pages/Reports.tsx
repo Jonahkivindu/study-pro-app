@@ -1,7 +1,8 @@
-import { Download, FileText, TrendingUp, Calendar, Loader } from "lucide-react";
+import { Download, FileText, TrendingUp, Calendar, Loader, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../services/api";
+import { ChatPanel } from "../components/ChatPanel";
 
 interface Report {
   id: string;
@@ -16,6 +17,7 @@ export function Reports() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [chatReport, setChatReport] = useState<{id: string, title: string} | null>(null);
 
   useEffect(() => {
     async function fetchReports() {
@@ -81,16 +83,17 @@ export function Reports() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pb-24 md:pb-8">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-[#fafafa] pb-24 md:pb-8 text-gray-900 tracking-tight">
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-100 blur-3xl rounded-full opacity-50 -z-10 pointer-events-none"></div>
+      <div className="max-w-4xl mx-auto px-4 py-12 z-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Study Reports</h1>
-          <p className="text-gray-600">Generate comprehensive study materials from your lectures</p>
+        <div className="mb-12">
+          <h1 className="text-5xl font-extrabold text-gray-900 mb-3 tracking-tighter">Study Reports</h1>
+          <p className="text-xl font-medium text-gray-500 tracking-tight">Generate comprehensive study materials from your lectures</p>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {[
             { icon: FileText, label: "Executive Summary", desc: "Brief overview" },
             { icon: TrendingUp, label: "Analysis Report", desc: "Detailed insights" },
@@ -99,56 +102,67 @@ export function Reports() {
             <button
               key={i}
               onClick={() => navigate("/")}
-              className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition text-left"
+              className="glass-card rounded-3xl p-8 hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] text-left premium-shadow border border-gray-100"
             >
-              <action.icon className="w-8 h-8 text-blue-600 mb-3" />
-              <p className="font-semibold text-gray-900">{action.label}</p>
-              <p className="text-sm text-gray-500">{action.desc}</p>
+              <action.icon className="w-8 h-8 text-gray-900 mb-4" />
+              <p className="font-bold tracking-tight text-gray-900 text-lg mb-1">{action.label}</p>
+              <p className="text-sm font-medium text-gray-500">{action.desc}</p>
             </button>
           ))}
         </div>
 
         {/* Reports List */}
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Reports</h2>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 mb-6">Recent Reports</h2>
           {loading ? (
             <div className="flex justify-center items-center py-12">
-              <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+              <Loader className="w-8 h-8 text-gray-900 animate-spin" />
             </div>
           ) : reports.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No reports generated yet.</div>
+            <div className="text-center py-12 bg-gray-50/50 rounded-3xl border border-gray-100 text-gray-500 font-medium">No reports generated yet.</div>
           ) : (
             reports.map((report) => (
             <div
               key={report.id}
-              className="bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition flex items-center justify-between"
+              className="glass-card rounded-2xl p-6 hover:shadow-lg transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-gray-100"
             >
-              <div className="flex items-center gap-4">
-                <FileText className="w-10 h-10 text-gray-400" />
+              <div className="flex items-center gap-5">
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                  <FileText className="w-6 h-6 text-gray-700" />
+                </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{report.title}</h3>
-                  <div className="flex items-center gap-4 mt-2">
+                  <h3 className="font-bold tracking-tight text-gray-900 text-lg leading-tight">{report.title}</h3>
+                  <div className="flex items-center gap-3 mt-1.5">
                     <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${typeColors[report.type]}`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase ${typeColors[report.type]}`}
                     >
                       {typeLabels[report.type]}
                     </span>
-                    <span className="text-sm text-gray-500">{report.date}</span>
+                    <span className="text-xs font-medium text-gray-500">{report.date}</span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 {report.status === "generating" ? (
-                  <div className="text-sm text-gray-500">Generating...</div>
+                  <div className="text-sm font-medium text-gray-500">Generating...</div>
                 ) : (
-                  <button 
-                    onClick={() => handleDownload(report.id, report.title)}
-                    disabled={downloadingId === report.id}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded transition flex items-center gap-2"
-                  >
-                    {downloadingId === report.id ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                    {downloadingId === report.id ? "Fetching..." : "Download"}
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => setChatReport({id: report.id, title: report.title})}
+                      className="btn-secondary h-11 w-full md:w-auto text-sm"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Chat
+                    </button>
+                    <button 
+                      onClick={() => handleDownload(report.id, report.title)}
+                      disabled={downloadingId === report.id}
+                      className="btn-primary h-11 w-full md:w-auto text-sm shadow-none"
+                    >
+                      {downloadingId === report.id ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      {downloadingId === report.id ? "Fetching..." : "Download"}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -156,16 +170,25 @@ export function Reports() {
         </div>
 
         {/* Empty State */}
-        <div className="bg-white rounded-lg shadow-sm p-12 text-center mt-8">
-          <p className="text-gray-500 mb-4">Want to generate a new report?</p>
+        <div className="glass-card rounded-3xl p-12 text-center mt-12">
+          <p className="text-gray-500 font-medium tracking-tight mb-6">Want to generate a new report?</p>
           <button 
             onClick={() => navigate("/")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+            className="btn-primary mx-auto shadow-xl hover:shadow-2xl"
           >
             Create New Report
           </button>
         </div>
       </div>
+
+      {chatReport && (
+        <ChatPanel
+          lectureId={chatReport.id}
+          lectureTitle={chatReport.title}
+          transcript=""
+          onClose={() => setChatReport(null)}
+        />
+      )}
     </div>
   );
 }

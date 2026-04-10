@@ -405,8 +405,9 @@ export function Home() {
       </main>
 
       {/* Chat Panel Modal */}
-      {showChatPanel && (
+      {showChatPanel && currentLectureId && (
         <ChatPanel
+          lectureId={currentLectureId}
           lectureTitle={lectureTitle}
           transcript={transcript}
           onClose={() => setShowChatPanel(false)}
