@@ -232,22 +232,25 @@ export function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col pb-24 md:pb-0">
+    <div className="min-h-screen bg-white flex flex-col pb-24 md:pb-0 text-gray-900 tracking-tight">
+      {/* Decorative background glow mimicking subtle WebGL blooms */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gray-100 blur-3xl rounded-full opacity-50 -z-10 pointer-events-none"></div>
+
       {/* Main Content */}
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-8">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-12 z-10">
         {/* Hero Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-16">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-4 tracking-tighter">
             Record Your Lecture
           </h1>
-          <p className="text-lg text-gray-600">
-            Capture your thoughts, let AI transform them
+          <p className="text-xl font-medium text-gray-500 tracking-tight">
+            Capture your thoughts, let AI transform them.
           </p>
         </div>
 
         {/* Lecture Title Input */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <div className="glass-card rounded-3xl p-8 mb-8">
+          <label className="block text-sm font-bold tracking-wide uppercase text-gray-400 mb-3 ml-1">
             Lecture Title
           </label>
           <input
@@ -255,13 +258,13 @@ export function Home() {
             value={lectureTitle}
             onChange={(e) => setLectureTitle(e.target.value)}
             placeholder="e.g., Physics - Quantum Mechanics 101"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+            className="w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-gray-900 focus:bg-white text-gray-900 transition-all font-medium"
           />
         </div>
 
         {/* Waveform Display */}
         {(isRecording || audioBlob) && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="glass-card rounded-3xl p-8 mb-8 premium-shadow">
             <Waveform
               isRecording={isRecording}
               audioContext={audioContextRef.current || undefined}
@@ -271,7 +274,7 @@ export function Home() {
         )}
 
         {/* Recording Controls */}
-        <div className="bg-white rounded-lg shadow-sm p-8 mb-6">
+        <div className="glass-card rounded-3xl p-10 mb-8 premium-shadow">
           <RecordingInterface
             isRecording={isRecording}
             onRecord={handleRecord}
@@ -289,7 +292,7 @@ export function Home() {
             <button
               onClick={handleSave}
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+              className="btn-primary w-full py-4 text-lg"
             >
               {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
               {loading ? "Saving..." : "Save Lecture"}
@@ -299,7 +302,7 @@ export function Home() {
 
         {/* Post-Save Actions */}
         {currentLectureId && (
-          <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+          <div className="glass-card rounded-3xl p-8 space-y-6 premium-shadow">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900">Lecture Actions</h3>
               <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full">
@@ -309,55 +312,55 @@ export function Home() {
 
             {/* Status Display */}
             {status && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg text-sm">
+              <div className="bg-gray-50 border border-gray-200 text-gray-700 font-medium tracking-tight p-4 rounded-2xl text-sm">
                 {status}
               </div>
             )}
 
             {/* Action Buttons Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={handleTranscribe}
                 disabled={loading || !!transcript}
-                className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm"
+                className="btn-secondary flex-col py-6 h-auto disabled:bg-gray-50"
               >
-                {loading && !transcript ? <Loader className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
-                {transcript ? "✓ Transcribed" : "Transcribe"}
+                {loading && !transcript ? <Loader className="w-5 h-5 animate-spin mb-1" /> : <Mic className="w-5 h-5 mb-1" />}
+                <span className="text-xs uppercase tracking-wider">{transcript ? "Transcribed" : "Transcribe"}</span>
               </button>
 
               <button
                 onClick={handleSummarize}
                 disabled={loading || !transcript || !!summary}
-                className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm"
+                className="btn-secondary flex-col py-6 h-auto disabled:bg-gray-50"
               >
-                {loading && !summary ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-                {summary ? "✓ Summarized" : "Summarize"}
+                {loading && !summary ? <Loader className="w-5 h-5 animate-spin mb-1" /> : <FileText className="w-5 h-5 mb-1" />}
+                <span className="text-xs uppercase tracking-wider">{summary ? "Summarized" : "Summarize"}</span>
               </button>
 
               <button
                 onClick={handleOpenChat}
                 disabled={!transcript}
-                className="bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm disabled:cursor-not-allowed"
+                className="btn-secondary flex-col py-6 h-auto disabled:bg-gray-50"
               >
-                <MessageSquare className="w-4 h-4" />
-                {!transcript ? "Chat (Soon)" : "Chat"}
+                <MessageSquare className="w-5 h-5 mb-1" />
+                <span className="text-xs uppercase tracking-wider">{transcript ? "Open Chat" : "Chat Requires Transcript"}</span>
               </button>
 
               <button
                 onClick={handleOpenReport}
                 disabled={!summary}
-                className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition flex flex-col items-center justify-center gap-1 text-sm disabled:cursor-not-allowed"
+                className="btn-secondary flex-col py-6 h-auto disabled:bg-gray-50"
               >
-                <DownloadCloud className="w-4 h-4" />
-                {!summary ? "Report (Soon)" : "Report"}
+                <DownloadCloud className="w-5 h-5 mb-1" />
+                <span className="text-xs uppercase tracking-wider">{summary ? "View Report" : "Report Requires Summary"}</span>
               </button>
             </div>
 
             {/* Transcript Display */}
             {transcript && (
-              <div className="border-t pt-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Transcript</h4>
-                <div className="bg-gray-50 p-4 rounded-lg max-h-32 overflow-y-auto text-sm text-gray-700">
+              <div className="border-t border-gray-100 pt-6 mt-6">
+                <h4 className="font-bold tracking-tight text-gray-900 mb-3">Transcript</h4>
+                <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl max-h-40 overflow-y-auto text-sm text-gray-700 leading-relaxed font-medium">
                   {transcript.substring(0, 300)}...
                 </div>
               </div>
@@ -365,9 +368,9 @@ export function Home() {
 
             {/* Summary Display */}
             {summary && (
-              <div className="border-t pt-4">
-                <h4 className="font-semibold text-gray-900 mb-2">Summary</h4>
-                <div className="bg-gray-50 p-4 rounded-lg max-h-32 overflow-y-auto text-sm text-gray-700">
+              <div className="border-t border-gray-100 pt-6">
+                <h4 className="font-bold tracking-tight text-gray-900 mb-3">Summary</h4>
+                <div className="bg-gray-50/50 border border-gray-100 p-5 rounded-2xl max-h-40 overflow-y-auto text-sm text-gray-700 leading-relaxed font-medium">
                   {summary.substring(0, 300)}...
                 </div>
               </div>
@@ -381,7 +384,7 @@ export function Home() {
                 setTranscript("");
                 setSummary("");
               }}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 rounded-lg transition text-sm"
+              className="w-full mt-4 bg-transparent border border-gray-200 hover:bg-gray-50 text-gray-600 font-semibold py-3 rounded-full transition text-sm flex justify-center items-center gap-2"
             >
               New Lecture
             </button>
@@ -390,9 +393,12 @@ export function Home() {
 
         {/* Empty State */}
         {!isRecording && !audioBlob && (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <p className="text-gray-500">
-              Start recording a new lecture or upload an existing one
+          <div className="glass-card rounded-3xl p-12 text-center mt-8">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mic className="w-6 h-6 text-gray-400" />
+            </div>
+            <p className="text-gray-500 font-medium tracking-tight">
+              Ready to start. Tap the record button above.
             </p>
           </div>
         )}

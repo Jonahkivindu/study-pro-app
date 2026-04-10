@@ -60,8 +60,17 @@ export function ReportPanel({ lectureTitle, summary, transcript, onClose }: Repo
     ],
   };
 
-  const handleDownloadPDF = () => {
-    alert("📥 PDF Download feature coming soon!\n\nIn the future, you'll be able to download this report as a formatted PDF with all sections, graphics, and your notes.");
+  const handleDownloadReport = () => {
+    const textContent = `REPORT: ${lectureTitle}\n\n=== EXECUTIVE SUMMARY ===\n${summary || "No summary"}\n\n=== KEY CONCEPTS ===\n- ${mockReport.sections.find(s => s.title === "Key Concepts")?.items?.join("\n- ") || ""}\n\n=== STUDY GUIDE ===\n- ${mockReport.sections.find(s => s.title === "Study Guide")?.items?.join("\n- ") || ""}\n\n=== EXAM READINESS ===\n- ${mockReport.sections.find(s => s.title === "Exam Readiness")?.items?.join("\n- ") || ""}\n\n=== ACTION ITEMS ===\n- ${mockReport.sections.find(s => s.title === "Action Items")?.items?.join("\n- ") || ""}`;
+    const blob = new Blob([textContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${lectureTitle.replace(/\s+/g, "_")}_Full_Report.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -128,11 +137,11 @@ export function ReportPanel({ lectureTitle, summary, transcript, onClose }: Repo
         {/* Footer */}
         <div className="border-t bg-gray-50 p-4 flex gap-3">
           <button
-            onClick={handleDownloadPDF}
+            onClick={handleDownloadReport}
             className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Download PDF Report
+            Download Text Report
           </button>
           <button
             onClick={onClose}

@@ -1,7 +1,38 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 @layer base {
   body {
-    @apply antialiased;
+    @apply antialiased bg-white text-gray-900 selection:bg-gray-900 selection:text-white;
+  }
+}
+
+/* Custom premium aesthetic utilities */
+@layer utilities {
+  .clip-pill {
+    @apply rounded-full;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)];
+  }
+
+  .premium-shadow {
+    @apply shadow-[0_4px_24px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] transition-shadow duration-500;
+  }
+
+  .btn-primary {
+    @apply bg-gray-900 text-white rounded-full px-6 py-3 font-semibold hover:bg-black transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:transform-none shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-900 border border-gray-200 rounded-full px-6 py-3 font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-sm;
+  }
+
+  .btn-icon {
+    @apply p-4 rounded-full border border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-sm;
   }
 }
