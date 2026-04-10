@@ -80,6 +80,13 @@ export class ApiClient {
     });
     return res.json();
   }
+
+  async deleteLecture(id: string) {
+    const res = await fetch(`${API_URL}/api/lectures/${id}`, {
+      method: "DELETE"
+    });
+    return res.json();
+  }
 }
 
 export const apiClient = new ApiClient();

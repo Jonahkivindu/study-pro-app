@@ -1,5 +1,7 @@
-import { Download, FileText, TrendingUp, Calendar } from "lucide-react";
-import { useState } from "react";
+import { Download, FileText, TrendingUp, Calendar, Loader } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { apiClient } from "../services/api";
 
 interface Report {
   id: string;
@@ -10,29 +12,61 @@ interface Report {
 }
 
 export function Reports() {
-  const [reports] = useState<Report[]>([
-    {
-      id: "1",
-      title: "Quantum Mechanics Summary",
-      type: "summary",
-      date: "Apr 10, 2026",
-      status: "ready",
-    },
-    {
-      id: "2",
-      title: "Organic Chemistry Analysis",
-      type: "analysis",
-      date: "Apr 9, 2026",
-      status: "ready",
-    },
-    {
-      id: "3",
-      title: "Biology Exam Questions",
-      type: "questions",
-      date: "Apr 8, 2026",
-      status: "ready",
-    },
-  ]);
+  const navigate = useNavigate();
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchReports() {
+      try {
+        const res = await apiClient.getLectures();
+        if (res.success) {
+          const generatedReports = res.lectures
+            .filter((l: any) => l.has_summary || l.has_transcript)
+            .map((l: any) => ({
+              id: l.id,
+              title: `${l.title} Report`,
+              type: l.has_summary ? "summary" : "analysis",
+              date: new Date(l.created_at).toLocaleDateString(),
+              status: "ready",
+            }));
+          setReports(generatedReports);
+        }
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchReports();
+  }, []);
+
+  const handleDownload = async (reportId: string, title: string) => {
+    setDownloadingId(reportId);
+    try {
+      const res = await apiClient.getLecture(reportId);
+      if (res.success && res.lecture) {
+        const textContent = `REPORT: ${title}\n\n=== SUMMARY ===\n${res.lecture.summary || "No summary"}\n\n=== TRANSCRIPT ===\n${res.lecture.transcript || "No transcript"}`;
+        const blob = new Blob([textContent], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${title.replace(/\s+/g, "_")}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        alert("Report details not found.");
+      }
+    } catch (error) {
+      console.error("Failed to download report:", error);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const typeLabels = {
     summary: "Study Summary",
@@ -64,6 +98,7 @@ export function Reports() {
           ].map((action, i) => (
             <button
               key={i}
+              onClick={() => navigate("/")}
               className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition text-left"
             >
               <action.icon className="w-8 h-8 text-blue-600 mb-3" />
@@ -76,7 +111,14 @@ export function Reports() {
         {/* Reports List */}
         <div className="space-y-3">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Reports</h2>
-          {reports.map((report) => (
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No reports generated yet.</div>
+          ) : (
+            reports.map((report) => (
             <div
               key={report.id}
               className="bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition flex items-center justify-between"
@@ -99,20 +141,27 @@ export function Reports() {
                 {report.status === "generating" ? (
                   <div className="text-sm text-gray-500">Generating...</div>
                 ) : (
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition flex items-center gap-2">
-                    <Download className="w-4 h-4" />
-                    Download
+                  <button 
+                    onClick={() => handleDownload(report.id, report.title)}
+                    disabled={downloadingId === report.id}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded transition flex items-center gap-2"
+                  >
+                    {downloadingId === report.id ? <Loader className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    {downloadingId === report.id ? "Fetching..." : "Download"}
                   </button>
                 )}
               </div>
             </div>
-          ))}
+          )))}
         </div>
 
         {/* Empty State */}
         <div className="bg-white rounded-lg shadow-sm p-12 text-center mt-8">
           <p className="text-gray-500 mb-4">Want to generate a new report?</p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+          <button 
+            onClick={() => navigate("/")}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+          >
             Create New Report
           </button>
         </div>

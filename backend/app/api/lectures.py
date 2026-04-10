@@ -111,6 +111,8 @@ async def list_lectures():
                     "title": l.title,
                     "description": l.description,
                     "duration": l.duration,
+                    "has_summary": bool(l.summary),
+                    "has_transcript": bool(l.transcript),
                     "created_at": l.created_at.isoformat() if l.created_at else None,
                 }
                 for l in lectures
