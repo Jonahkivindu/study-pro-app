@@ -73,7 +73,11 @@ class RAGService:
             dict with answer and metadata
         """
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            from app.prompts import STUDY_PRO_SYSTEM_MESSAGE
+            model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                system_instruction=STUDY_PRO_SYSTEM_MESSAGE
+            )
 
             # Build context message
             system_message = f"""You are a helpful study assistant. Answer questions based on the following lecture material.
@@ -110,7 +114,11 @@ Based on this material, provide a clear and educational answer."""
     def extract_key_concepts(self, text: str, num_concepts: int = 10) -> dict:
         """Extract key concepts from lecture text"""
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            from app.prompts import STUDY_PRO_SYSTEM_MESSAGE
+            model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                system_instruction=STUDY_PRO_SYSTEM_MESSAGE
+            )
 
             prompt = f"""Extract the {num_concepts} most important concepts, ideas, or topics from this lecture transcript.
 For each concept, provide:

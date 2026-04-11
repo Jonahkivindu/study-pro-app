@@ -35,6 +35,17 @@ export class ApiClient {
     return res.json();
   }
 
+  async uploadDocument(lectureId: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const res = await fetch(`${API_URL}/api/lectures/${lectureId}/upload-document`, {
+      method: "POST",
+      body: formData
+    });
+    return res.json();
+  }
+
   async transcribeLecture(lectureId: string, method: string = "auto") {
     const res = await fetch(`${API_URL}/api/lectures/${lectureId}/transcribe`, {
       method: "POST",

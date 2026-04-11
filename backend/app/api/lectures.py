@@ -176,6 +176,49 @@ async def upload_audio(lecture_id: str, file: UploadFile = File(...)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@router.post("/lectures/{lecture_id}/upload-document", response_model=dict)
+async def upload_document(lecture_id: str, file: UploadFile = File(...)):
+    """Upload a document (PDF or TXT) and extract its text directly as the transcript"""
+    try:
+        db = SessionLocal()
+        lecture = db.query(Lecture).filter(Lecture.id == lecture_id).first()
+
+        if not lecture:
+            db.close()
+            raise HTTPException(status_code=404, detail="Lecture not found")
+
+        content = await file.read()
+        extracted_text = ""
+
+        if file.filename.lower().endswith(".pdf"):
+            import PyPDF2
+            import io
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+            extracted_text = "\n".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
+        else:
+            # Assume text file
+            extracted_text = content.decode("utf-8")
+
+        if not extracted_text.strip():
+            db.close()
+            raise HTTPException(status_code=400, detail="Could not extract text from document")
+
+        # Save directly as transcript since there's no audio to transcribe
+        lecture.transcript = extracted_text
+        db.commit()
+        db.refresh(lecture)
+        db.close()
+
+        return {
+            "success": True,
+            "message": "Document uploaded and parsed successfully",
+            "lecture_id": lecture_id,
+            "transcript": extracted_text[:100] + "..." # Just for sanity check
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 
 @router.post("/lectures/{lecture_id}/transcribe", response_model=dict)
 async def transcribe_lecture(lecture_id: str):
@@ -272,9 +315,14 @@ async def chat_lecture(lecture_id: str, chat_query: ChatQuery):
             return {"success": True, "response": "[Mock Response] The AI is currently unlinked, so I cannot provide insights right now."}
 
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        
+        from app.prompts import STUDY_PRO_SYSTEM_MESSAGE
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=STUDY_PRO_SYSTEM_MESSAGE
+        )
 
-        prompt = f"You are a helpful study assistant. The user is asking a question about a lecture transcript.\n\nTranscript:\n{lecture.transcript}\n\nUser Question:\n{chat_query.query}\n\nPlease answer the user's question based strictly on the provided transcript."
+        prompt = f"User Question:\n{chat_query.query}\n\nTranscript:\n{lecture.transcript}\n\nPlease answer the user contextually based strictly on the provided transcript."
         response = model.generate_content(prompt)
 
         return {

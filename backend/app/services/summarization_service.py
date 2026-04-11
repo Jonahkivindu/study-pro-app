@@ -24,7 +24,11 @@ class SummarizationService:
             return
         try:
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
+            from app.prompts import STUDY_PRO_SYSTEM_MESSAGE
+            self.model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                system_instruction=STUDY_PRO_SYSTEM_MESSAGE
+            )
         except Exception as e:
             print(f"⚠️  Failed to initialize Gemini: {e}")
             self.model = None

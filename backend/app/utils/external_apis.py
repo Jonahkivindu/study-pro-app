@@ -7,7 +7,7 @@ class GeminiAPI:
         """Transcribe audio using Gemini Native Audio API"""
         pass
     
-    async def generate_text(self, prompt: str, model: str = "gemini-1.5-flash") -> str:
+    async def generate_text(self, prompt: str, model: str = "gemini-2.0-flash") -> str:
         """Generate text using Gemini"""
         pass
     

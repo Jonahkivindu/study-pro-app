@@ -20,6 +20,7 @@ export function Library() {
   const [selectedLectureDetails, setSelectedLectureDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
 
   useEffect(() => {
     async function loadLectures() {
@@ -70,6 +71,30 @@ export function Library() {
       }
     } catch (error) {
       console.error("Error deleting:", error);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!selectedLectureId) return;
+    setIsSummarizing(true);
+    try {
+      const res = await apiClient.summarizeLecture(selectedLectureId);
+      if (res.success) {
+        const detailsRes = await apiClient.getLecture(selectedLectureId);
+        if (detailsRes.success) {
+          setSelectedLectureDetails(detailsRes.lecture);
+        }
+        // Also refresh the overall list so the main lecture object knows it has a summary
+        const listRes = await apiClient.getLectures();
+        if (listRes.success) setLectures(listRes.lectures);
+      } else {
+        alert("Failed to generate summary: " + (res.error || "Unknown error from server."));
+      }
+    } catch (error) {
+      console.error("Error generating summary:", error);
+      alert("Error reaching the server. Please check your connection.");
+    } finally {
+      setIsSummarizing(false);
     }
   };
 
@@ -236,7 +261,23 @@ export function Library() {
                         {selectedLectureDetails.summary}
                       </div>
                     ) : (
-                      <p className="text-gray-500 italic bg-gray-50 p-4 rounded-lg">No summary generated yet.</p>
+                      <div className="bg-gray-50 border border-gray-100 p-8 rounded-3xl flex flex-col items-center justify-center text-center gap-4">
+                        <div className="w-14 h-14 bg-white shadow-sm border border-gray-100 text-gray-900 rounded-full flex items-center justify-center mb-2">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 mb-2 text-lg">No Summary Available</h4>
+                          <p className="text-sm font-medium text-gray-500 max-w-sm mb-4">Generate an AI-powered summary to condense this lecture into its core key concepts.</p>
+                        </div>
+                        <button 
+                          onClick={handleGenerateSummary}
+                          disabled={isSummarizing || !selectedLectureDetails.transcript}
+                          className="btn-primary shadow-xl hover:shadow-2xl"
+                        >
+                          {isSummarizing ? <Loader className="w-5 h-5 animate-spin mr-2" /> : <FileText className="w-5 h-5 mr-2" />}
+                          {isSummarizing ? "Analyzing Lecture..." : selectedLectureDetails.transcript ? "Generate AI Summary" : "Requires Transcript"}
+                        </button>
+                      </div>
                     )}
                   </div>
 

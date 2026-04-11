@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, Save, Mic, FileText, MessageSquare, DownloadCloud, Loader } from "lucide-react";
+import { Upload, Save, Mic, FileText, MessageSquare, DownloadCloud, Loader, FileUp } from "lucide-react";
 import { BottomNav } from "../components/BottomNav";
 import { RecordingInterface } from "../components/RecordingInterface";
 import { Waveform } from "../components/Waveform";
@@ -28,6 +28,8 @@ export function Home() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number>();
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize audio context on first user interaction
   const initAudioContext = async () => {
@@ -157,6 +159,46 @@ export function Home() {
       alert(`Error: ${error instanceof Error ? error.message : "Failed to save"}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, isDocument: boolean) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const titleToUse = lectureTitle.trim() || file.name.replace(/\.[^/.]+$/, "") || file.name;
+    if (!lectureTitle.trim()) setLectureTitle(titleToUse);
+
+    try {
+      setLoading(true);
+      setStatus("Creating lecture...");
+
+      const lectureRes = await apiClient.createLecture(titleToUse);
+      if (!lectureRes.success) throw new Error(lectureRes.error || "Failed to create lecture");
+
+      const lectureId = lectureRes.lecture_id.toString();
+      setCurrentLectureId(lectureId);
+      
+      if (isDocument) {
+        setStatus("Parsing document...");
+        const uploadRes = await apiClient.uploadDocument(lectureId, file);
+        if (!uploadRes.success) throw new Error(uploadRes.error || "Failed to parse document");
+        setStatus("✅ Document parsed! Ready for summarization.");
+        setTranscript(titleToUse + " document parsed via PDF/TXT parser successfully.");
+      } else {
+        setStatus("Uploading audio...");
+        const uploadRes = await apiClient.uploadAudio(lectureId, file);
+        if (!uploadRes.success) throw new Error(uploadRes.error || "Failed to upload audio");
+        setStatus("✅ Audio uploaded! Ready for transcription.");
+      }
+      
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      setStatus(`❌ ${error instanceof Error ? error.message : "Failed to upload"}`);
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to upload"}`);
+    } finally {
+      setLoading(false);
+      event.target.value = '';
     }
   };
 
@@ -389,6 +431,58 @@ export function Home() {
               New Lecture
             </button>
           </div>
+        )}
+
+        {/* Upload Alternatives */}
+        {!isRecording && !currentLectureId && !audioBlob && (
+          <>
+            <div className="flex items-center gap-4 justify-center mb-8 px-8">
+              <div className="h-px bg-gray-200 flex-1"></div>
+              <div className="text-xs text-gray-400 font-bold tracking-widest uppercase">Or Upload Directly</div>
+              <div className="h-px bg-gray-200 flex-1"></div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-6 mb-8">
+              <button 
+                onClick={() => audioInputRef.current?.click()} 
+                disabled={loading}
+                className="glass-card rounded-3xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition border border-gray-100 premium-shadow group disabled:opacity-50"
+              >
+                <div className="w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <FileUp className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-sm font-extrabold tracking-tight text-gray-900">Upload Audio</span>
+                <span className="text-xs font-medium text-gray-400 mt-1">MP3, WAV, M4A</span>
+              </button>
+              
+              <button 
+                onClick={() => docInputRef.current?.click()} 
+                disabled={loading}
+                className="glass-card rounded-3xl p-8 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition border border-gray-100 premium-shadow group disabled:opacity-50"
+              >
+                <div className="w-12 h-12 bg-white border border-gray-200 shadow-sm rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <FileText className="w-5 h-5 text-gray-900" />
+                </div>
+                <span className="text-sm font-extrabold tracking-tight text-gray-900">Upload Document</span>
+                <span className="text-xs font-medium text-gray-400 mt-1">PDF, TXT</span>
+              </button>
+            </div>
+
+            <input 
+              type="file" 
+              ref={audioInputRef} 
+              onChange={(e) => handleFileUpload(e, false)} 
+              accept="audio/*" 
+              className="hidden" 
+            />
+            <input 
+              type="file" 
+              ref={docInputRef} 
+              onChange={(e) => handleFileUpload(e, true)} 
+              accept=".pdf,.txt" 
+              className="hidden" 
+            />
+          </>
         )}
 
         {/* Empty State */}
