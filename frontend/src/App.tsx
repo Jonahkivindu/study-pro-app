@@ -17,7 +17,6 @@ import { Onboarding } from "./pages/auth/Onboarding";
 import { Login } from "./pages/auth/Login";
 import { SignUp } from "./pages/auth/SignUp";
 import { EmailVerification } from "./pages/auth/EmailVerification";
-import { PhoneOTP } from "./pages/auth/PhoneOTP";
 import { ForgotPassword } from "./pages/auth/ForgotPassword";
 
 function MainLayout() {
@@ -43,7 +42,6 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/verify-email" element={<EmailVerification />} />
-          <Route path="/otp" element={<PhoneOTP />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Protected App Routes */}

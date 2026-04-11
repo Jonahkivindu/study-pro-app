@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, Eye, EyeOff, Loader } from 'lucide-react';
+import { BookOpen, Eye, EyeOff, Loader, Github } from 'lucide-react';
 
 export function SignUp() {
   const [fullName, setFullName] = useState('');
@@ -19,8 +19,7 @@ export function SignUp() {
   
   const navigate = useNavigate();
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignUp = async () => {
     setError(null);
 
     // Validation
@@ -59,10 +58,18 @@ export function SignUp() {
         navigate('/verify-email');
       }
     } catch (err: any) {
-      setError(err.message || "Failed to create account");
+      if (err.message?.toLowerCase().includes('rate limit')) {
+         setError("You've tried to sign up too many times recently. Supabase limits verification emails to prevent spam. Please wait an hour or adjust your Auth settings in the Supabase Dashboard.");
+      } else {
+         setError(err.message || "Failed to create account");
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOAuth = async (provider: 'google' | 'github') => {
+    await supabase.auth.signInWithOAuth({ provider });
   };
 
   return (
@@ -79,7 +86,7 @@ export function SignUp() {
           </div>
         )}
 
-        <form onSubmit={handleSignUp} className="space-y-4">
+        <div className="space-y-4">
           <div>
             <label className="block text-xs font-bold tracking-wide uppercase text-gray-500 mb-1 ml-1">Full Name</label>
             <input 
@@ -167,12 +174,38 @@ export function SignUp() {
           </div>
 
           <button 
-            type="submit" disabled={loading}
+            type="button" onClick={handleSignUp} disabled={loading}
             className="w-full mt-6 py-4 bg-gray-900 text-white rounded-2xl font-bold tracking-tight hover:bg-black transition-all disabled:opacity-70 flex justify-center items-center"
           >
             {loading ? <Loader className="w-5 h-5 animate-spin" /> : "Create Account"}
           </button>
-        </form>
+        </div>
+
+        <div className="mt-8 flex items-center gap-4">
+          <div className="flex-1 h-px bg-gray-200"></div>
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">or continue with</span>
+          <div className="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        <div className="mt-8 space-y-4">
+          <button 
+            type="button"
+            onClick={() => handleOAuth('google')}
+            className="w-full py-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all flex justify-center items-center gap-3"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            Google
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => handleOAuth('github')}
+            className="w-full py-4 bg-[#24292e] border border-[#24292e] rounded-2xl font-bold text-white hover:bg-black transition-all flex justify-center items-center gap-3"
+          >
+            <Github className="w-5 h-5" />
+            GitHub
+          </button>
+        </div>
 
         <p className="mt-8 text-center text-sm font-medium text-gray-500">
           Already have an account? <Link to="/login" className="text-gray-900 font-bold hover:underline">Log In</Link>

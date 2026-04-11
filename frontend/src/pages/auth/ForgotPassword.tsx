@@ -8,8 +8,7 @@ export function ForgotPassword() {
   const [status, setStatus] = useState<'IDLE' | 'LOADING' | 'SUCCESS' | 'ERROR'>('IDLE');
   const [message, setMessage] = useState('');
 
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleReset = async () => {
     if (!email) return;
 
     setStatus('LOADING');
@@ -55,7 +54,7 @@ export function ForgotPassword() {
         )}
 
         {status !== 'SUCCESS' && (
-          <form onSubmit={handleReset} className="space-y-6">
+          <div className="space-y-6">
             <div>
               <label className="block text-xs font-bold tracking-wide uppercase text-gray-500 mb-2 ml-1">Email Address</label>
               <input 
@@ -65,12 +64,12 @@ export function ForgotPassword() {
               />
             </div>
             <button 
-              type="submit" disabled={status === 'LOADING'}
+              type="button" onClick={handleReset} disabled={status === 'LOADING'}
               className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold tracking-tight hover:bg-black transition-all disabled:opacity-70 flex justify-center items-center"
             >
               {status === 'LOADING' ? <Loader className="w-5 h-5 animate-spin" /> : "Send reset link"}
             </button>
-          </form>
+          </div>
         )}
       </div>
     </div>

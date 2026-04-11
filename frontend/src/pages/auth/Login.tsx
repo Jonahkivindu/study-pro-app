@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, Eye, EyeOff, Loader } from 'lucide-react';
+import { BookOpen, Eye, EyeOff, Loader, Github } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -11,8 +11,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     setError(null);
 
     // Basic Validation
@@ -47,7 +46,7 @@ export function Login() {
     }
   };
 
-  const handleOAuth = async (provider: 'google') => {
+  const handleOAuth = async (provider: 'google' | 'github') => {
     await supabase.auth.signInWithOAuth({ provider });
   };
 
@@ -65,7 +64,7 @@ export function Login() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <div className="space-y-5">
           <div>
             <label className="block text-xs font-bold tracking-wide uppercase text-gray-500 mb-2 ml-1">Email Address</label>
             <input 
@@ -101,13 +100,14 @@ export function Login() {
           </div>
 
           <button 
-            type="submit" 
+            type="button" 
+            onClick={handleLogin}
             disabled={loading}
             className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold tracking-tight hover:bg-black hover:shadow-xl transition-all disabled:opacity-70 flex justify-center items-center"
           >
             {loading ? <Loader className="w-5 h-5 animate-spin" /> : "Log In"}
           </button>
-        </form>
+        </div>
 
         <div className="mt-8 flex items-center gap-4">
           <div className="flex-1 h-px bg-gray-200"></div>
@@ -125,12 +125,14 @@ export function Login() {
             Google
           </button>
 
-          <Link 
-            to="/otp"
-            className="w-full py-4 bg-white border border-gray-200 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all flex justify-center items-center w-block block text-center"
+          <button 
+            type="button"
+            onClick={() => handleOAuth('github')}
+            className="w-full py-4 bg-[#24292e] border border-[#24292e] rounded-2xl font-bold text-white hover:bg-black transition-all flex justify-center items-center gap-3"
           >
-            Phone / OTP
-          </Link>
+            <Github className="w-5 h-5" />
+            GitHub
+          </button>
         </div>
 
         <p className="mt-10 text-center text-sm font-medium text-gray-500">
