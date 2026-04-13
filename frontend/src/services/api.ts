@@ -127,6 +127,12 @@ export class ApiClient {
     });
     return res.json();
   }
+
+  async getAnalyticsOverview() {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/api/analytics/overview`, { headers });
+    return res.json();
+  }
 }
 
 export const apiClient = new ApiClient();
